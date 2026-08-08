@@ -109,7 +109,7 @@ const SidebarManager = (() => {
             
             li.dataset.modelId = model.id;
     
-            // MODIFICADO: Ação de clique contextual e habilitação de drag-and-drop
+            // MODIFICAÇÃO DE UX: Sanitização do Tooltip para Variáveis de Sistema
             if (model.isSystemVariable) {
                 li.setAttribute('draggable', 'true');
                 li.addEventListener('dragstart', (event) => {
@@ -118,10 +118,10 @@ const SidebarManager = (() => {
                 });
                 li.addEventListener('click', () => {
                     navigator.clipboard.writeText(model.content).then(() => {
-                        NotificationService.show(`Código "${model.content}" copiado!`, 'success', 2000);
+                        NotificationService.show(`Variável copiada!`, 'success', 2000);
                     });
                 });
-                li.title = `Clique para copiar o código: ${model.content}`;
+                li.title = `Clique para copiar a variável do sistema`; // Tooltip limpo
             } else if (isVar) {
                 li.addEventListener('click', () => callbacks.onModelInsert(model));
                 li.title = `Clique para inserir a variável "${model.name}"`;
@@ -131,11 +131,24 @@ const SidebarManager = (() => {
             headerDiv.className = 'model-header';
             const nameSpan = document.createElement('span');
             nameSpan.className = 'model-name';
-            nameSpan.title = `Clique para copiar: ${model.content}`;
+            nameSpan.title = `Clique para copiar o modelo em formato Markdown`; // Tooltip limpo
+            
+            // MODIFICAÇÃO DE DADOS: Interceptação e Higienização do Markdown
             nameSpan.addEventListener('click', (e) => {
                 e.stopPropagation(); 
-                navigator.clipboard.writeText(model.content).then(() => {
-                    NotificationService.show(`Conteúdo de "${model.name}" copiado!`, 'success', 2500);
+                
+                const rawHtml = model.content || '';
+                const rawMarkdown = MarkdownConverter.htmlToMarkdown(rawHtml);
+                
+                // POST-PROCESSING: Reverte o escape do Turndown apenas em sintaxes vitais do sistema
+                // Substitui \{, \}, \_ e \# por {, }, _ e #.
+                const safeMarkdown = rawMarkdown.replace(/\\([{}_\#])/g, '$1');
+                
+                navigator.clipboard.writeText(safeMarkdown).then(() => {
+                    NotificationService.show(`Conteúdo de "${model.name}" copiado pronto para uso!`, 'success', 2500);
+                }).catch(err => {
+                    console.error("Erro na API de Clipboard:", err);
+                    NotificationService.show('Falha ao copiar conteúdo. Verifique permissões do navegador.', 'error');
                 });
             });
 
